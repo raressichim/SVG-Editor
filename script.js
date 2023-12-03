@@ -138,9 +138,7 @@ editor.onmousedown = function (e) {
         }
     } else if (e.button === MOUSE_RIGHT && selectedElement) {
         isDragging = true;
-        offsetX = e.pageX - selectedElement.getAttributeNS(null, "x");
-        offsetY = e.pageY - selectedElement.getAttributeNS(null, "y");
-
+        
         addAction({
             type: 'drag',
             element: selectedElement,
@@ -181,6 +179,9 @@ editor.onmouseup = function (e) {
 
         newElement.onmousedown = function (e) {
             if (e.button == MOUSE_RIGHT) {
+                offsetX = e.pageX - this.getAttributeNS(null, "x");
+                offsetY = e.pageY - this.getAttributeNS(null, "y");
+        
                 var childElements = document.querySelectorAll("#elements *");
                 childElements.forEach(el => {
                     el.classList.remove("selected");
@@ -204,6 +205,7 @@ editor.onmouseup = function (e) {
                 });
             }
         };
+        
         addAction({
             type: 'add',
             element:newElement
@@ -217,9 +219,8 @@ editor.onmouseup = function (e) {
 
 editor.onmousemove = function (e) {
     if (isDragging && selectedElement) {
-        const newX = e.pageX - editor.getBoundingClientRect().left - offsetX;
-        const newY = e.pageY - editor.getBoundingClientRect().top - offsetY;
-
+        const newX = e.pageX - offsetX;
+        const newY = e.pageY - offsetY;
         selectedElement.setAttributeNS(null, "x", newX);
         selectedElement.setAttributeNS(null, "y", newY);
     }
