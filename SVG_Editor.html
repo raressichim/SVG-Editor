@@ -7,14 +7,15 @@
 </head>
 
 <body>
-    <h1>  
-        SVG Editor
+    <h1> 
+        SVG Editor 
         <button id="rectangle">Rectangle</button>
         <button id="ellipse">Ellipse</button>
         <button id="line">Line</button>
         <input type="color" name="" id="color" >
         <input type="range" id="lineWidth" value="1" min="1" max="10">
         <button id="undo">Undo↩</button>
+        <button id="exportSVG">Export as SVG</button>
     </h1>
 
     <svg id="editor">	
@@ -23,7 +24,7 @@
         <ellipse id="selectionEllipse" cx="323" cy="-0.20000076293945312" rx="323" ry="0.20000076293945312" style="display:none"></ellipse>
         <line id="selectionLine" width="646" height="0.40000152587890625" style="display:none;" x="0" y="-0.40000152587890625"></line>
     </svg>
-    
+
     <script src="script.js"></script>
 </body>
 </html>

@@ -30,7 +30,10 @@ h1 {
 #ellipse,
 #line,
 #color,
-#undo {
+#undo,
+#exportPNG,
+#exportJPEG,
+#exportSVG {
   background-color: blueviolet;
   margin-left: 10px;
   margin-right: 5px;
