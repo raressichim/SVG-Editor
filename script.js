@@ -18,6 +18,7 @@ var undo = document.getElementById("undo");
 var jpeg = document.getElementById("exportJPEG");
 var png = document.getElementById("exportPNG");
 var exportSvg = document.getElementById("exportSVG");
+var restore = document.getElementById("restore");
 
 let isDragging = false;
 let offsetX = 0;
@@ -106,6 +107,7 @@ undo.onclick = (e) => {
       actionToUndo.element.setAttributeNS(null, "y", actionToUndo.initialY);
     }
   }
+  saveDrawing();
 };
 
 function setRectangleCoordinates(object, x1, y1, x2, y2) {
@@ -161,6 +163,27 @@ editor.onmousedown = function (e) {
       initialX: selectedElement.getAttributeNS(null, "x"),
       initialY: selectedElement.getAttributeNS(null, "y"),
     });
+
+    switch (selectedElement.tagName.toLowerCase()) {
+      case "ellipse":
+        const cx = parseFloat(selectedElement.getAttributeNS(null, "cx"));
+        const cy = parseFloat(selectedElement.getAttributeNS(null, "cy"));
+        offsetX = e.pageX - cx;
+        offsetY = e.pageY - cy;
+        break;
+      case "line":
+        offsetX =
+          e.pageX - parseFloat(selectedElement.getAttributeNS(null, "x1"));
+        offsetY =
+          e.pageY - parseFloat(selectedElement.getAttributeNS(null, "y1"));
+        break;
+      default:
+        offsetX =
+          e.pageX - parseFloat(selectedElement.getAttributeNS(null, "x"));
+        offsetY =
+          e.pageY - parseFloat(selectedElement.getAttributeNS(null, "y"));
+        break;
+    }
   }
 };
 
@@ -245,14 +268,49 @@ editor.onmouseup = function (e) {
       isDragging = false;
     }
   }
+  saveDrawing();
 };
 
 editor.onmousemove = function (e) {
   if (isDragging && selectedElement) {
     const newX = e.pageX - offsetX;
     const newY = e.pageY - offsetY;
-    selectedElement.setAttributeNS(null, "x", newX);
-    selectedElement.setAttributeNS(null, "y", newY);
+
+    switch (selectedElement.tagName.toLowerCase()) {
+      case "rect":
+        selectedElement.setAttributeNS(null, "x", newX);
+        selectedElement.setAttributeNS(null, "y", newY);
+        break;
+      case "ellipse":
+        selectedElement.setAttributeNS(
+          null,
+          "cx",
+          parseFloat(selectedElement.getAttributeNS(null, "cx")) +
+            (newX - parseFloat(selectedElement.getAttributeNS(null, "cx")))
+        );
+        selectedElement.setAttributeNS(
+          null,
+          "cy",
+          parseFloat(selectedElement.getAttributeNS(null, "cy")) +
+            (newY - parseFloat(selectedElement.getAttributeNS(null, "cy")))
+        );
+        break;
+      case "line":
+        const dx =
+          parseFloat(selectedElement.getAttributeNS(null, "x2")) -
+          parseFloat(selectedElement.getAttributeNS(null, "x1"));
+        const dy =
+          parseFloat(selectedElement.getAttributeNS(null, "y2")) -
+          parseFloat(selectedElement.getAttributeNS(null, "y1"));
+
+        selectedElement.setAttributeNS(null, "x1", newX);
+        selectedElement.setAttributeNS(null, "y1", newY);
+        selectedElement.setAttributeNS(null, "x2", newX + dx);
+        selectedElement.setAttributeNS(null, "y2", newY + dy);
+        break;
+      default:
+        break;
+    }
   }
 
   x2 = e.pageX - this.getBoundingClientRect().left;
@@ -262,28 +320,59 @@ editor.onmousemove = function (e) {
   setLineCoordinates(selectionLine, x1, y1, x2, y2);
 };
 
-function exportToSVG() {
-  const svgData = new XMLSerializer().serializeToString(editor);
-
-  const link = document.createElement("a");
-  const blob = new Blob([svgData], { type: "image/svg+xml" });
-  const url = URL.createObjectURL(blob);
-
-  link.href = url;
-  link.download = "svg_editor.svg";
-  link.click();
-  URL.revokeObjectURL(url);
+function saveDrawing() {
+  const elements = document.getElementById("elements").innerHTML;
+  localStorage.setItem("savedDrawing", elements);
 }
-
-exportSvg.onclick = () => {
-  exportToSVG();
-};
-
-document.onkeydown = function (e) {
-  if (e.keyCode === KEY_DEL && selectedElement) selectedElement.remove();
-};
 
 editor.oncontextmenu = function (e) {
   e.preventDefault();
   // To prevent the default context menu behavior
+};
+
+restore.onclick = () => {
+  const savedDrawing = localStorage.getItem("savedDrawing");
+  if (savedDrawing) {
+    elements.innerHTML = savedDrawing;
+    var childElements = document.querySelectorAll("#elements *");
+    childElements.forEach((el) => {
+      el.onmousedown = function (e) {
+        if (e.button == MOUSE_RIGHT) {
+          offsetX = e.pageX - this.getAttributeNS(null, "x");
+          offsetY = e.pageY - this.getAttributeNS(null, "y");
+
+          var childElements = document.querySelectorAll("#elements *");
+          childElements.forEach((el) => {
+            el.classList.remove("selected");
+            el.style.fill = el.getAttribute("data-original-fill");
+            el.style.stroke = el.getAttribute("data-original-stroke");
+          });
+
+          this.classList.add("selected");
+          selectedElement = this;
+          selectedElement.setAttributeNS(null, "stroke-width", lineWidth.value);
+          selectedElement.setAttribute(
+            "data-original-fill",
+            selectedElement.style.fill
+          );
+          selectedElement.setAttribute(
+            "data-original-stroke",
+            selectedElement.style.stroke
+          );
+          selectedElement.style.fill = "blueviolet";
+          selectedElement.style.stroke = "blueviolet";
+
+          addAction({
+            type: "styleChange",
+            element: selectedElement,
+            oldFill: selectedElement.getAttribute("data-original-fill"),
+            oldStroke: selectedElement.getAttribute("data-original-stroke"),
+          });
+        }
+      };
+    });
+    alert("Drawing restored successfully!");
+  } else {
+    alert("No saved drawing found.");
+  }
 };

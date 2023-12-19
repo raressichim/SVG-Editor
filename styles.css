@@ -33,7 +33,8 @@ h1 {
 #undo,
 #exportPNG,
 #exportJPEG,
-#exportSVG {
+#exportSVG,
+#restore {
   background-color: blueviolet;
   margin-left: 10px;
   margin-right: 5px;
