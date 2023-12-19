@@ -1,10 +1,12 @@
 var MOUSE_LEFT = 0,
   MOUSE_RIGHT = 2,
   KEY_DEL = 46;
+
 var x1 = 0,
   y1 = 0,
   x2 = 0,
   y2 = 0;
+
 var selectedElement = null;
 var shape = "rectangle";
 var editor = document.getElementById("editor");
@@ -15,8 +17,6 @@ var selectionLine = document.getElementById("selectionLine");
 var color = document.getElementById("color");
 var lineWidth = document.getElementById("lineWidth");
 var undo = document.getElementById("undo");
-var jpeg = document.getElementById("exportJPEG");
-var png = document.getElementById("exportPNG");
 var exportSvg = document.getElementById("exportSVG");
 var restore = document.getElementById("restore");
 
@@ -28,7 +28,6 @@ var actionsStack = [];
 
 function addAction(action) {
   actionsStack.push(action);
-  console.log("Stack: ", action);
 }
 
 document.getElementById("rectangle").onclick = () => {
@@ -91,20 +90,40 @@ lineWidth.onchange = (e) => {
 undo.onclick = (e) => {
   if (actionsStack.length > 0) {
     var actionToUndo = actionsStack.pop();
-    if (actionToUndo.type === "add") {
-      actionToUndo.element.remove();
-    } else if (actionToUndo.type === "styleChange") {
-      actionToUndo.element.style.fill = actionToUndo.oldFill;
-      actionToUndo.element.style.stroke = actionToUndo.oldStroke;
-    } else if (actionToUndo.type === "strokeChange") {
-      actionToUndo.element.setAttributeNS(
-        null,
-        "stroke-width",
-        actionToUndo.oldStrokeWidth
-      );
-    } else if (actionToUndo.type === "drag") {
-      actionToUndo.element.setAttributeNS(null, "x", actionToUndo.initialX);
-      actionToUndo.element.setAttributeNS(null, "y", actionToUndo.initialY);
+    switch (actionToUndo.type) {
+      case "add":
+        actionToUndo.element.remove();
+        break;
+      case "delete":
+        actionToUndo.parent.appendChild(actionToUndo.element);
+        break;
+      case "styleChange":
+        actionToUndo.element.style.fill = actionToUndo.oldFill;
+        actionToUndo.element.style.stroke = actionToUndo.oldStroke;
+        break;
+      case "strokeChange":
+        actionToUndo.element.setAttributeNS(
+          null,
+          "stroke-width",
+          actionToUndo.oldStrokeWidth
+        );
+        break;
+      case "dragRectangle":
+        actionToUndo.element.setAttributeNS(null, "x", actionToUndo.initialX);
+        actionToUndo.element.setAttributeNS(null, "y", actionToUndo.initialY);
+        break;
+      case "dragEllipse":
+        actionToUndo.element.setAttributeNS(null, "cx", actionToUndo.initialCX);
+        actionToUndo.element.setAttributeNS(null, "cy", actionToUndo.initialCY);
+        break;
+      case "dragLine":
+        actionToUndo.element.setAttributeNS(null, "x1", actionToUndo.initialX1);
+        actionToUndo.element.setAttributeNS(null, "x2", actionToUndo.initialX2);
+        actionToUndo.element.setAttributeNS(null, "y1", actionToUndo.initialY1);
+        actionToUndo.element.setAttributeNS(null, "y2", actionToUndo.initialY2);
+        break;
+      default:
+        break;
     }
   }
   saveDrawing();
@@ -157,27 +176,43 @@ editor.onmousedown = function (e) {
   } else if (e.button === MOUSE_RIGHT && selectedElement) {
     isDragging = true;
 
-    addAction({
-      type: "drag",
-      element: selectedElement,
-      initialX: selectedElement.getAttributeNS(null, "x"),
-      initialY: selectedElement.getAttributeNS(null, "y"),
-    });
-
     switch (selectedElement.tagName.toLowerCase()) {
       case "ellipse":
+        addAction({
+          type: "dragEllipse",
+          element: selectedElement,
+          initialCX: selectedElement.getAttributeNS(null, "cx"),
+          initialCY: selectedElement.getAttributeNS(null, "cy"),
+        });
+
         const cx = parseFloat(selectedElement.getAttributeNS(null, "cx"));
         const cy = parseFloat(selectedElement.getAttributeNS(null, "cy"));
         offsetX = e.pageX - cx;
         offsetY = e.pageY - cy;
         break;
       case "line":
+        addAction({
+          type: "dragLine",
+          element: selectedElement,
+          initialX1: selectedElement.getAttributeNS(null, "x1"),
+          initialY1: selectedElement.getAttributeNS(null, "y1"),
+          initialX2: selectedElement.getAttributeNS(null, "x2"),
+          initialY2: selectedElement.getAttributeNS(null, "y2"),
+        });
+
         offsetX =
           e.pageX - parseFloat(selectedElement.getAttributeNS(null, "x1"));
         offsetY =
           e.pageY - parseFloat(selectedElement.getAttributeNS(null, "y1"));
         break;
       default:
+        addAction({
+          type: "dragRectangle",
+          element: selectedElement,
+          initialX: selectedElement.getAttributeNS(null, "x"),
+          initialY: selectedElement.getAttributeNS(null, "y"),
+        });
+
         offsetX =
           e.pageX - parseFloat(selectedElement.getAttributeNS(null, "x"));
         offsetY =
@@ -325,9 +360,33 @@ function saveDrawing() {
   localStorage.setItem("savedDrawing", elements);
 }
 
+document.onkeydown = function (e) {
+  if (e.keyCode === KEY_DEL && selectedElement) {
+    addAction({
+      type: "delete",
+      element: selectedElement.cloneNode(true),
+      parent: selectedElement.parentElement,
+    });
+    selectedElement.remove();
+    saveDrawing();
+  }
+};
+
 editor.oncontextmenu = function (e) {
   e.preventDefault();
-  // To prevent the default context menu behavior
+};
+
+exportSvg.onclick = () => {
+  const svgData = new XMLSerializer().serializeToString(editor);
+
+  const link = document.createElement("a");
+  const blob = new Blob([svgData], { type: "image/svg+xml" });
+  const url = URL.createObjectURL(blob);
+
+  link.href = url;
+  link.download = "svg_editor.svg";
+  link.click();
+  URL.revokeObjectURL(url);
 };
 
 restore.onclick = () => {
